@@ -1,4 +1,53 @@
 services:
+  litellm-db:
+    image: postgres:17
+    container_name: litellm-db
+    restart: always
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=litellm
+      - POSTGRES_PASSWORD=${LITELLM_DB_PASSWORD}
+    volumes:
+      - litellm-db:/var/lib/postgresql/data
+    networks:
+      - litellm-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    container_name: litellm
+    restart: always
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://litellm:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - LITELLM_SALT_KEY=${LITELLM_SALT_KEY}
+      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
+      - AWS_REGION_NAME=${AWS_REGION_NAME}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LITELLM_LOG=INFO
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    networks:
+      - proxy
+      - litellm-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.litellm.rule=Host(`${LITELLM_DOMAIN}`)"
+      - "traefik.http.routers.litellm.entrypoints=websecure"
+      - "traefik.http.routers.litellm.tls.certresolver=cf"
+      - "traefik.http.services.litellm.loadbalancer.server.port=4000"
+      - "traefik.docker.network=proxy"
+      - "com.centurylinklabs.watchtower.enable=true"
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+
   open-webui:
     image: ghcr.io/open-webui/open-webui:ollama
     container_name: open-webui
@@ -58,9 +107,13 @@ services:
 networks:
   proxy:
     external: true
+  litellm-internal:
+    driver: bridge
 
 volumes:
   ollama:
     external: true
   open-webui:
     external: true
+  litellm-db:
+    external: false
