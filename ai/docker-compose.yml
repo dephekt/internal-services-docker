@@ -33,6 +33,7 @@ services:
       - "traefik.http.routers.openwebui.tls.certresolver=cf"
       - "traefik.http.services.openwebui.loadbalancer.server.port=8080"
       - "traefik.docker.network=proxy"
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "11434:11434"
     volumes:
@@ -52,7 +53,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 3600 open-webui
+    command: --interval 3600 --label-enable
 
 networks:
   proxy:

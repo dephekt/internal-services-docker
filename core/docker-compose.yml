@@ -27,6 +27,7 @@ services:
       - "traefik.http.services.dashboard.loadbalancer.server.port=1443"
       - "traefik.http.routers.dashboard.middlewares=traefik-forward-auth@file"
       - "traefik.docker.network=proxy"
+      - "com.centurylinklabs.watchtower.enable=true"
 
   auth:
     image: quay.io/keycloak/keycloak:26.3
@@ -80,6 +81,8 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     networks:
       - proxy
     environment:
