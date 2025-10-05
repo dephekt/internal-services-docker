@@ -59,6 +59,7 @@ services:
       - "traefik.docker.network=proxy"
     volumes:
       - keycloak-data:/opt/keycloak/data
+      - ./keycloak-providers:/opt/keycloak/providers:ro
     depends_on:
       db:
         condition: service_started
