@@ -1,41 +1,34 @@
 services:
-  router:
-    image: traefik:latest
-    container_name: router
+  newt:
+    image: fosrl/newt
+    container_name: newt
     restart: unless-stopped
-    networks:
-      proxy: {}
-      lan:
-        ipv4_address: 192.168.8.241
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./config/traefik/dynamic:/etc/traefik/dynamic:ro
-      - letsencrypt:/letsencrypt
+    env_file:
+      - config.env
     environment:
-      - CLOUDFLARE_DNS_API_TOKEN
-      - ACME_EMAIL
-      - TRAEFIK_CERTIFICATESRESOLVERS_cf_ACME_EMAIL=${ACME_EMAIL}
-      - TRAEFIK_CERTIFICATESRESOLVERS_cf_ACME_DNSCHALLENGE_PROVIDER=cloudflare
-      - TRAEFIK_CERTIFICATESRESOLVERS_cf_ACME_STORAGE=/letsencrypt/acme.json
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`router.${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`) || PathPrefix(`/_oauth`))"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=cf"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.services.dashboard.loadbalancer.server.port=1443"
-      - "traefik.http.routers.dashboard.middlewares=traefik-forward-auth@file"
-      - "traefik.docker.network=proxy"
-      - "com.centurylinklabs.watchtower.enable=true"
+      - PANGOLIN_ENDPOINT
+      - DOCKER_SOCKET=/run/docker.sock
+      - DOCKER_ENFORCE_NETWORK_VALIDATION=true
+    volumes:
+      - /run/docker.sock:/run/docker.sock:ro
+    secrets:
+      - NEWT_ID.env
+      - NEWT_SECRET.env
+      - source: secrets2env.sh
+        target: /run/secrets/secrets2env.sh
+        mode: 0777
+    entrypoint: ["/run/secrets/secrets2env.sh", "/app/newt"]
 
   auth:
-    image: quay.io/keycloak/keycloak:26.3
+    build:
+      context: .
+      dockerfile: keycloak.Dockerfile
+    image: local/keycloak:26.3-providers
     container_name: auth
-    command: ["start"]
+    env_file:
+      - config.env
     environment:
       - KEYCLOAK_ADMIN
-      - KEYCLOAK_ADMIN_PASSWORD
       - KC_PROXY=edge
       - KC_HOSTNAME=https://auth.${DOMAIN}
       - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true
@@ -45,21 +38,24 @@ services:
       - KC_PROXY_HEADERS=xforwarded
       - KC_DB
       - KC_DB_USERNAME
-      - KC_DB_PASSWORD
       - KC_DB_URL
     restart: unless-stopped
-    networks:
-      - proxy
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=Host(`auth.${DOMAIN}`)"
-      - "traefik.http.routers.auth.entrypoints=websecure"
-      - "traefik.http.routers.auth.tls.certresolver=cf"
-      - "traefik.http.services.auth.loadbalancer.server.port=8080"
-      - "traefik.docker.network=proxy"
+      - "pangolin.proxy-resources.auth.name=Keycloak"
+      - "pangolin.proxy-resources.auth.protocol=http"
+      - "pangolin.proxy-resources.auth.full-domain=auth.${DOMAIN}"
+      - "pangolin.proxy-resources.auth.targets[0].enabled=true"
+      - "pangolin.proxy-resources.auth.targets[0].port=8080"
+    secrets:
+      - KEYCLOAK_ADMIN_PASSWORD.env
+      - KC_DB_PASSWORD.env
+      - source: secrets2env.sh
+        target: /run/secrets/secrets2env.sh
+        mode: 0777
+    entrypoint: ["/run/secrets/secrets2env.sh", "/opt/keycloak/bin/kc.sh"]
+    command: ["start"]
     volumes:
       - keycloak-data:/opt/keycloak/data
-      - ./keycloak-providers:/opt/keycloak/providers:ro
     depends_on:
       db:
         condition: service_started
@@ -68,67 +64,35 @@ services:
     image: mariadb:11.4
     container_name: keycloak-db
     restart: unless-stopped
+    env_file:
+      - config.env
     environment:
       - MARIADB_DATABASE=keycloak
       - MARIADB_USER=${KC_DB_USERNAME}
-      - MARIADB_PASSWORD
-      - MARIADB_ROOT_PASSWORD
+      - MARIADB_PASSWORD_FILE=/run/secrets/db_password
+      - MARIADB_ROOT_PASSWORD_FILE=/run/secrets/mariadb_root_password
     volumes:
       - keycloak-mariadb:/var/lib/mysql
-    networks:
-      - proxy
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    restart: unless-stopped
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    networks:
-      - proxy
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    command: tunnel run
-
-  router-forward-auth:
-    image: mesosphere/traefik-forward-auth:latest
-    container_name: router-forward-auth
-    restart: unless-stopped
-    networks:
-      - proxy
-    environment:
-      - PROVIDER_URI=${TFA_PROVIDER_URI}
-      - CLIENT_ID=${ROUTER_FORWARD_AUTH_CLIENT_ID}
-      - CLIENT_SECRET=${ROUTER_FORWARD_AUTH_CLIENT_SECRET}
-      - ENCRYPTION_KEY=${ROUTER_FORWARD_AUTH_ENCRYPTION_KEY}
-      - SECRET=${ROUTER_FORWARD_AUTH_SECRET}
-      - AUTH_HOST=router.${DOMAIN}
-      - OIDC_GROUPS_CLAIM=groups
-      # Cookie domain needs to cover any subdomains, because
-      # ComposeRedirectURI and CSRF cookie domain in Gorilla
-      # expect the forwarded request host and `AuthHost` to match
-      # the same configured cookie-domain. Otherwise, the cookie
-      # will not be set and I get a redirect loop.
-      - COOKIE_DOMAIN=.${DOMAIN}
-    labels:
-      - "traefik.http.services.router-forward-auth.loadbalancer.server.port=4181"
-      - "traefik.docker.network=proxy"
-    depends_on:
-      router:
-        condition: service_started
-      auth:
-        condition: service_started
-      cloudflared:
-        condition: service_started
-
-networks:
-  proxy:
-    external: true
-  lan:
-    external: true
-    name: core_lan
+    secrets:
+      - db_password
+      - mariadb_root_password
 
 volumes:
   keycloak-data:
-  letsencrypt:
   keycloak-mariadb:
+
+secrets:
+  KEYCLOAK_ADMIN_PASSWORD.env:
+    file: ./secrets/KEYCLOAK_ADMIN_PASSWORD.env
+  KC_DB_PASSWORD.env:
+    file: ./secrets/DB_PASSWORD.env
+  db_password:
+    file: ./secrets/DB_PASSWORD.env
+  mariadb_root_password:
+    file: ./secrets/MARIADB_ROOT_PASSWORD
+  NEWT_ID.env:
+    file: ./secrets/NEWT_ID.env
+  NEWT_SECRET.env:
+    file: ./secrets/NEWT_SECRET.env
+  secrets2env.sh:
+    file: ./secrets2env.sh

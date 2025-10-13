@@ -1,4 +1,5 @@
+.vscode/
+.cursor/
+**/secrets/
 keycloak-import/
 keycloak-export/
-*.har
-core/keycloak-providers/*.jar

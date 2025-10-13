@@ -1,50 +1,57 @@
-NETWORK=proxy
+export COMPOSE_PROJECT_NAME ?= media
 CORE_COMPOSE=core/docker-compose.yml
-AI_COMPOSE=ai/docker-compose.yml
-LAN_NET_NAME=core_lan
-LAN_PARENT=eno2
-LAN_SUBNET=192.168.8.0/24
-LAN_GATEWAY=192.168.8.1
-ROUTER_IP=192.168.8.241
-HOST_SHIM_IF=lan-shim
-HOST_SHIM_IP=192.168.8.250/24
-OP_RUN_CORE=op run --env-file="core/local.env" --
-OP_RUN_AI=op run --env-file="ai/local.env" --
 
-.PHONY: network lan-net shim core-up core-down ai-up ai-down up down restart logs-core logs-ai auth-stop auth-start auth-export auth-import auth-migrate
+.PHONY: inject-secrets check-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate
 
-network:
-	docker network create $(NETWORK) || true
+inject-secrets:
+	@echo "Injecting secrets from 1Password..."
+	@mkdir -p core/secrets
+	@op read "op://Develop/Keycloak Admin/password" > core/secrets/KEYCLOAK_ADMIN_PASSWORD.env
+	@op read "op://Develop/Keycloak DB/password" > core/secrets/DB_PASSWORD.env
+	@op read "op://Develop/Keycloak Admin/password" > core/secrets/MARIADB_ROOT_PASSWORD
+	@op read "op://Develop/Pangolin/newt id" > core/secrets/NEWT_ID.env
+	@op read "op://Develop/Pangolin/newt secret" > core/secrets/NEWT_SECRET.env
+	@echo "Secrets injected successfully!"
+	@echo "Note: core/secrets/* files are git-ignored and should not be committed"
 
-lan-net:
-	# Create macvlan network if not exists
-	@if ! docker network ls --format '{{.Name}}' | grep -q '^$(LAN_NET_NAME)$$'; then \
-		docker network create -d macvlan \
-		  --subnet=$(LAN_SUBNET) --gateway=$(LAN_GATEWAY) \
-		  -o parent=$(LAN_PARENT) $(LAN_NET_NAME); \
+check-secrets:
+	@if [ ! -f core/secrets/KEYCLOAK_ADMIN_PASSWORD.env ]; then \
+		echo "ERROR: core/secrets/KEYCLOAK_ADMIN_PASSWORD not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
 	fi
+	@if [ ! -f core/secrets/DB_PASSWORD.env ]; then \
+		echo "ERROR: core/secrets/DB_PASSWORD not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
+	fi
+	@if [ ! -f core/secrets/MARIADB_ROOT_PASSWORD ]; then \
+		echo "ERROR: core/secrets/MARIADB_ROOT_PASSWORD not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
+	fi
+	@if [ ! -f core/secrets/NEWT_ID.env ]; then \
+		echo "ERROR: core/secrets/NEWT_ID not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
+	fi
+	@if [ ! -f core/secrets/NEWT_SECRET.env ]; then \
+		echo "ERROR: core/secrets/NEWT_SECRET not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
+	fi
+	@echo "All secrets files present"
 
-shim:
-	sudo ip link add $(HOST_SHIM_IF) link $(LAN_PARENT) type macvlan mode bridge || true
-	sudo ip addr add $(HOST_SHIM_IP) dev $(HOST_SHIM_IF) || true
-	sudo ip link set $(HOST_SHIM_IF) up || true
-
-core-up: network lan-net
-	$(OP_RUN_CORE) docker compose -f $(CORE_COMPOSE) up -d
+core-up: check-secrets
+	docker compose -f $(CORE_COMPOSE) up -d
 
 core-down:
 	docker compose -f $(CORE_COMPOSE) down
 
-ai-up: network
-	$(OP_RUN_AI) docker compose -f $(AI_COMPOSE) up -d
-
-ai-down:
-	docker compose -f $(AI_COMPOSE) down
-
-up: core-up ai-up
+up: core-up
 	echo "Stacks started"
 
-down: ai-down core-down
+down: core-down
 	echo "Stacks stopped"
 
 restart: down up
@@ -52,19 +59,15 @@ restart: down up
 logs-core:
 	docker compose -f $(CORE_COMPOSE) logs -f | cat
 
-logs-ai:
-	docker compose -f $(AI_COMPOSE) logs -f | cat
-
 auth-stop:
 	docker compose -f $(CORE_COMPOSE) stop auth
 
 auth-start:
 	docker compose -f $(CORE_COMPOSE) start auth
 
-auth-export: auth-stop
+auth-export: auth-stop check-secrets
 	mkdir -p ./keycloak-export
-	$(OP_RUN_CORE) \
-	    docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-export:/opt/keycloak/data/export \
 		auth export \
 		--dir /opt/keycloak/data/export \
@@ -75,10 +78,9 @@ auth-transfer-export:
 	mkdir -p ./keycloak-import
 	cp -r ./keycloak-export/* ./keycloak-import/
 
-auth-import: auth-stop
+auth-import: auth-stop check-secrets
 	mkdir -p ./keycloak-import
-	$(OP_RUN_CORE) \
-		docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-import:/opt/keycloak/data/import \
 		auth import \
 		--dir /opt/keycloak/data/import

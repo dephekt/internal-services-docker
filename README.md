@@ -2,111 +2,90 @@
 
 This stack lets you share apps running at home without opening router ports or exposing your home IP. Your users just visit a URL in their browser. You get HTTPS and single sign‑on (SSO). Apps that already support SSO can plug into your identity provider; apps that don’t can still sit behind a login screen.
 
-You can also layer in a VPN (Tailscale or NetBird) later if you need direct network access.
-
 
 ## What’s inside (at a glance)
-- A reverse proxy (Traefik) that routes requests to your containers
-- A secure front door on the internet (Cloudflare Tunnel) so you don’t need port forwarding
-- An identity provider (Keycloak) for SSO
-- A helper (forward‑auth) to protect apps that don’t support SSO
-- An example app (Open WebUI) already wired for SSO
+- Pangolin (managed self‑hosted) edge nodes for global ingress and failover
+- Newt (local agent) for tunnel + autodiscovery via Docker labels
+- Keycloak (auth) and MariaDB (db)
 
 
 ## How it works (one minute)
-- Your DNS is on Cloudflare. Public requests for your app go to Cloudflare.
-- Cloudflare sends those requests through a private tunnel to your Docker host.
-- Traefik (the router) looks at the host name and forwards the request to the right container.
-- If the app needs a login, Traefik asks Keycloak to handle it. Apps with built‑in SSO talk to Keycloak directly; apps without it are protected by forward‑auth.
+- Requests hit the closest Pangolin edge node
+- Pangolin authenticates users (per your policy) and routes to your site’s Newt
+- Newt discovers containers via Docker labels (Blueprints) and forwards to them
 
 No client software is required for your users. Everything is just HTTPS in a browser.
 
 
 ## Before you start
 - Docker + Docker Compose v2 installed
-- A domain on Cloudflare and access to Cloudflare Zero Trust (to create the tunnel)
-- Willingness to set a few environment variables (secrets are injected with 1Password CLI in the provided Makefile, but you can use yours)
+- Pangolin managed self‑hosted nodes deployed (see Pangolin docs)
+- 1Password CLI (`op`) for secret injection (or adapt templates to your secret manager)
+- For remote deployment: SSH access to your Docker host
 
 
-## Setup in 5 steps
-1) Set your domain and secrets
-- Open `core/local.env` and `ai/local.env`.
-- Fill in the essentials: `DOMAIN`, `ACME_EMAIL`, `CLOUDFLARE_DNS_API_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`.
-- Add Keycloak admin and database values, plus the forward‑auth client and cookie keys.
-- For Open WebUI, set `AI_FQDN`, `OPENID_PROVIDER_URL`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`.
+## Setup in 6 steps
+1) Configure non-secret settings (optional)
+- Edit `core/config.env` and `ai/config.env` if you need to change domain or other public settings
+- Default domain is `dephekt.net` - change it to yours
 
-2) Create the networks
+2) Generate secrets from 1Password
 ```bash
-make network   # creates the external 'proxy' network
-make lan-net   # creates the external 'core_lan' macvlan (optional LAN IP for Traefik)
-make shim      # optional: host shim interface for macvlan
+make inject-secrets   # generates core/secrets.env and ai/secrets.env
+```
+This uses your 1Password vault to populate secret values. The generated files are git-ignored.
+
+3) (Optional) Create LAN shim if you need host LAN access
+```bash
+make lan-net
+make shim
 ```
 
-3) Start the core stack
+4) Start the core stack
 ```bash
-make core-up   # traefik, keycloak, db, cloudflared, forward-auth
+make core-up   # newt, keycloak, db
 ```
 
-4) Tell Cloudflare which hostnames to send to the tunnel
-- In Cloudflare Zero Trust → your Tunnel → Public Hostnames, add:
-  - `router.${DOMAIN}` → `https://router:443`
-  - `auth.${DOMAIN}` → `https://router:443`
-  - `ai.${DOMAIN}` (or your `AI_FQDN`) → `https://router:443`
-
-5) (Optional) Start the AI stack
-```bash
-make ai-up
-```
+5) No dashboard config needed if using Blueprints labels (Newt autodiscovers)
 
 You should now reach:
-- Traefik dashboard at `https://router.${DOMAIN}` (protected by login)
 - Keycloak at `https://auth.${DOMAIN}`
-- Open WebUI at `https://AI_FQDN`
+
+**Remote deployment:** Use Docker contexts - `docker context create remote --docker "host=ssh://user@host"`, then deploy normally.
 
 
-## Add your first app
-Attach your container to the `proxy` network and add Traefik labels. This example exposes an app on `app.${DOMAIN}` and forwards to its internal port 8080.
+## Add your first app (Pangolin Blueprints)
+Expose a container with Pangolin proxy resource labels; Newt autodiscovers:
 
 ```yaml
 labels:
-  - "traefik.enable=true"
-  - "traefik.http.routers.app.rule=Host(`app.${DOMAIN}`)"
-  - "traefik.http.routers.app.entrypoints=websecure"
-  - "traefik.http.routers.app.tls.certresolver=cf"
-  - "traefik.http.services.app.loadbalancer.server.port=8080"
-  - "traefik.docker.network=proxy"
+  - "pangolin.proxy-resources.app.name=My App"
+  - "pangolin.proxy-resources.app.protocol=http"
+  - "pangolin.proxy-resources.app.full-domain=app.${DOMAIN}"
+  - "pangolin.proxy-resources.app.targets[0].enabled=true"
+  - "pangolin.proxy-resources.app.targets[0].port=8080"
 ```
-
-- If your app supports OIDC/SAML, configure it to use Keycloak at `https://auth.${DOMAIN}`.
-- If it doesn’t, add the forward‑auth middleware:
-```yaml
-- "traefik.http.routers.app.middlewares=traefik-forward-auth@file"
-```
-If you also restrict by path, make sure your rule still includes `/_oauth` so the login callback can reach the middleware.
 
 
 ## Certificates and HTTPS
-Traefik uses Cloudflare’s DNS challenge to get certificates automatically. You only need `ACME_EMAIL` and a `CLOUDFLARE_DNS_API_TOKEN` with DNS edit rights.
+TLS termination and cert management are handled by Pangolin at the edge.
 
 
 ## Common issues (and quick checks)
-- Can’t get a certificate: check DNS token and that your domain is on Cloudflare.
-- Stuck in a login loop: set `COOKIE_DOMAIN` to `.yourdomain.tld` and keep `AUTH_HOST=router.${DOMAIN}`; ensure the router rule includes `/_oauth` if you restrict paths.
-- Tunnel errors (502/522): confirm your Tunnel is healthy and Public Hostnames point to `https://router:443`.
+- Resource not visible: confirm Newt is running with Docker socket and labels are correct
+- Wrong target port: set `targets[0].port` label explicitly
 
 
 ## Where things live
 - Core stack: `core/docker-compose.yml`
-- AI stack: `ai/docker-compose.yml`
-- Traefik config: `core/config/traefik/traefik.yml` and `core/config/traefik/dynamic/forward-auth.yml`
-- Env files: `core/local.env`, `ai/local.env`
+- Config files (public): `core/config.env`
+- Secrets directory (git-ignored): `core/secrets/`
 - Make commands: `Makefile`
 - Keycloak realm exports: `keycloak-import/` (import with `make auth-import`)
 
 
 ## Want the deep dive?
-See `AGENTS.md` for a compact, structured reference (service inventory, env variables, labels, command cheat sheet). It’s useful for power users and AI tools.
+See `AGENTS.md` for service inventory, env variables, labels, and command reference.
 
 
-## VPN option (optional)
-If you need direct network access (SMB, RDP, databases), add Tailscale or NetBird alongside this stack. You can keep using this reverse‑proxy + SSO flow for browser apps, and the VPN for the rest.
+ 
