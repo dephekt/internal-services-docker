@@ -1,7 +1,13 @@
 export COMPOSE_PROJECT_NAME ?= media
 CORE_COMPOSE=core/docker-compose.yml
+DOCKER_CONTEXT=$(shell docker context show)
+CORE_PROJECT_DIR=$(shell pwd)/core
 
-.PHONY: inject-secrets check-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate
+# Export all variables from config.env for docker compose interpolation
+include core/config.env
+export
+
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -42,11 +48,21 @@ check-secrets:
 	fi
 	@echo "All secrets files present"
 
-core-up: check-secrets
-	docker compose -f $(CORE_COMPOSE) up -d
+sync-secrets: check-secrets
+	@if [ "$(DOCKER_CONTEXT)" != "default" ]; then \
+		echo "Syncing secrets to remote context: $(DOCKER_CONTEXT)"; \
+		DOCKER_HOST=$$(docker context inspect $(DOCKER_CONTEXT) -f '{{.Endpoints.docker.Host}}' | sed 's|^ssh://||'); \
+		rsync -avz --relative core/secrets core/config.env core/keycloak-providers core/secrets2env.sh keycloak-import/ $${DOCKER_HOST}:~/docker/; \
+		echo "Secrets synced to remote host"; \
+	else \
+		echo "Using local context, no sync needed"; \
+	fi
+
+core-up: check-secrets sync-secrets
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d
 
 core-down:
-	docker compose -f $(CORE_COMPOSE) down
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) down
 
 up: core-up
 	echo "Stacks started"
@@ -57,7 +73,7 @@ down: core-down
 restart: down up
 
 logs-core:
-	docker compose -f $(CORE_COMPOSE) logs -f | cat
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f | cat
 
 auth-stop:
 	docker compose -f $(CORE_COMPOSE) stop auth

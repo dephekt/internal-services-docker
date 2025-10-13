@@ -1,23 +1,30 @@
 services:
   newt:
-    image: fosrl/newt
+    build:
+      context: .
+      dockerfile: newt.Dockerfile
+    image: local/newt:latest
     container_name: newt
     restart: unless-stopped
     env_file:
       - config.env
     environment:
-      - PANGOLIN_ENDPOINT
       - DOCKER_SOCKET=/run/docker.sock
       - DOCKER_ENFORCE_NETWORK_VALIDATION=true
+      - HEALTH_FILE=/tmp/newt-health
     volumes:
       - /run/docker.sock:/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/newt-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     secrets:
       - NEWT_ID.env
       - NEWT_SECRET.env
-      - source: secrets2env.sh
-        target: /run/secrets/secrets2env.sh
-        mode: 0777
-    entrypoint: ["/run/secrets/secrets2env.sh", "/app/newt"]
+    entrypoint: ["/usr/local/bin/secrets2env.sh", "/entrypoint.sh"]
+    command: ["newt"]
 
   auth:
     build:
@@ -28,7 +35,6 @@ services:
     env_file:
       - config.env
     environment:
-      - KEYCLOAK_ADMIN
       - KC_PROXY=edge
       - KC_HOSTNAME=https://auth.${DOMAIN}
       - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true
@@ -36,29 +42,29 @@ services:
       - KC_HOSTNAME_STRICT_HTTPS=false
       - KC_HTTP_ENABLED=true
       - KC_PROXY_HEADERS=xforwarded
-      - KC_DB
-      - KC_DB_USERNAME
-      - KC_DB_URL
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     labels:
       - "pangolin.proxy-resources.auth.name=Keycloak"
       - "pangolin.proxy-resources.auth.protocol=http"
       - "pangolin.proxy-resources.auth.full-domain=auth.${DOMAIN}"
-      - "pangolin.proxy-resources.auth.targets[0].enabled=true"
+      - "pangolin.proxy-resources.auth.targets[0].method=http"
       - "pangolin.proxy-resources.auth.targets[0].port=8080"
     secrets:
       - KEYCLOAK_ADMIN_PASSWORD.env
       - KC_DB_PASSWORD.env
-      - source: secrets2env.sh
-        target: /run/secrets/secrets2env.sh
-        mode: 0777
-    entrypoint: ["/run/secrets/secrets2env.sh", "/opt/keycloak/bin/kc.sh"]
+    entrypoint: ["/usr/local/bin/secrets2env.sh", "/opt/keycloak/bin/kc.sh"]
     command: ["start"]
     volumes:
       - keycloak-data:/opt/keycloak/data
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
 
   db:
     image: mariadb:11.4
@@ -71,6 +77,12 @@ services:
       - MARIADB_USER=${KC_DB_USERNAME}
       - MARIADB_PASSWORD_FILE=/run/secrets/db_password
       - MARIADB_ROOT_PASSWORD_FILE=/run/secrets/mariadb_root_password
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -ukeycloak -p\"$$(cat /run/secrets/db_password)\" --database=keycloak --execute=\"SELECT 1\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - keycloak-mariadb:/var/lib/mysql
     secrets:
@@ -94,5 +106,3 @@ secrets:
     file: ./secrets/NEWT_ID.env
   NEWT_SECRET.env:
     file: ./secrets/NEWT_SECRET.env
-  secrets2env.sh:
-    file: ./secrets2env.sh
