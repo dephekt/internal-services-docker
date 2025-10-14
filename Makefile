@@ -7,7 +7,9 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate
+IPTV_COMPOSE=iptv/docker-compose.yml
+
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate iptv-up iptv-down iptv-restart logs-iptv
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -102,3 +104,14 @@ auth-import: auth-stop check-secrets
 		--dir /opt/keycloak/data/import
 
 auth-migrate: auth-export auth-transfer-export auth-import
+
+iptv-up:
+	docker compose -p iptv -f $(IPTV_COMPOSE) up -d
+
+iptv-down:
+	docker compose -p iptv -f $(IPTV_COMPOSE) down
+
+iptv-restart: iptv-down iptv-up
+
+logs-iptv:
+	docker compose -p iptv -f $(IPTV_COMPOSE) logs -f | cat
