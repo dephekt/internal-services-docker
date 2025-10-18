@@ -8,8 +8,9 @@ include core/config.env
 export
 
 IPTV_COMPOSE=iptv/docker-compose.yml
+IMMICH_COMPOSE=immich/docker-compose.yml
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate iptv-up iptv-down iptv-restart logs-iptv
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -115,3 +116,14 @@ iptv-restart: iptv-down iptv-up
 
 logs-iptv:
 	docker compose -p iptv -f $(IPTV_COMPOSE) logs -f | cat
+
+immich-up:
+	docker compose -p immich -f $(IMMICH_COMPOSE) up -d
+
+immich-down:
+	docker compose -p immich -f $(IMMICH_COMPOSE) down
+
+immich-restart: immich-down immich-up
+
+logs-immich:
+	docker compose -p immich -f $(IMMICH_COMPOSE) logs -f | cat
