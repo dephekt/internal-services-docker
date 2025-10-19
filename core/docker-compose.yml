@@ -23,6 +23,8 @@ services:
     secrets:
       - NEWT_ID.env
       - NEWT_SECRET.env
+    networks:
+      - proxy
     entrypoint: ["/usr/local/bin/secrets2env.sh", "/entrypoint.sh"]
     command: ["newt"]
 
@@ -58,6 +60,9 @@ services:
     secrets:
       - KEYCLOAK_ADMIN_PASSWORD.env
       - KC_DB_PASSWORD.env
+    networks:
+      - proxy
+      - core
     entrypoint: ["/usr/local/bin/secrets2env.sh", "/opt/keycloak/bin/kc.sh"]
     command: ["start"]
     volumes:
@@ -85,6 +90,8 @@ services:
       start_period: 30s
     volumes:
       - keycloak-mariadb:/var/lib/mysql
+    networks:
+      - core
     secrets:
       - db_password
       - mariadb_root_password
@@ -105,6 +112,8 @@ services:
       - openldap-config:/etc/ldap/slapd.d
     secrets:
       - ldap_admin_password
+    networks:
+      - core
     healthcheck:
       test: ["CMD-SHELL", "BASE_DN=\"dc=$${DOMAIN//./,dc=}\"; ldapsearch -x -H ldap://localhost:389 -b \"$$BASE_DN\" -D \"cn=admin,$$BASE_DN\" -w \"$$(cat /run/secrets/ldap_admin_password)\" -s base"]
       interval: 30s
@@ -114,9 +123,17 @@ services:
 
 volumes:
   keycloak-data:
+    external: true
+    name: media_keycloak-data
   keycloak-mariadb:
+    external: true
+    name: media_keycloak-mariadb
   openldap-data:
+    external: true
+    name: media_openldap-data
   openldap-config:
+    external: true
+    name: media_openldap-config
 
 secrets:
   KEYCLOAK_ADMIN_PASSWORD.env:
@@ -133,3 +150,8 @@ secrets:
     file: ./secrets/NEWT_SECRET.env
   ldap_admin_password:
     file: ./secrets/LDAP_ADMIN_PASSWORD
+
+networks:
+  proxy:
+    external: true
+  core:

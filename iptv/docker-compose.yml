@@ -38,8 +38,8 @@ services:
       - "pangolin.proxy-resources.xtremecodes.targets[0].method=http"
       - "pangolin.proxy-resources.xtremecodes.targets[0].port=8001"
     networks:
-      - media_default
+      - proxy
 
 networks:
-  media_default:
+  proxy:
     external: true
