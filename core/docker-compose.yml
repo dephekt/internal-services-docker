@@ -103,6 +103,7 @@ services:
     environment:
       - LDAP_ORGANISATION=Dephekt
       - LDAP_DOMAIN=${DOMAIN}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
       - LDAP_ADMIN_PASSWORD_FILE=/run/secrets/ldap_admin_password
       - LDAP_CONFIG_PASSWORD_FILE=/run/secrets/ldap_admin_password
       - LDAP_TLS=false
@@ -115,7 +116,7 @@ services:
     networks:
       - core
     healthcheck:
-      test: ["CMD-SHELL", "BASE_DN=\"dc=$${DOMAIN//./,dc=}\"; ldapsearch -x -H ldap://localhost:389 -b \"$$BASE_DN\" -D \"cn=admin,$$BASE_DN\" -w \"$$(cat /run/secrets/ldap_admin_password)\" -s base"]
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost:389 -b \"$$LDAP_BASE_DN\" -D \"cn=admin,$$LDAP_BASE_DN\" -w \"$$(cat /run/secrets/ldap_admin_password)\" -s base"]
       interval: 30s
       timeout: 10s
       retries: 3
