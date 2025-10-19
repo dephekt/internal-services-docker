@@ -2,11 +2,13 @@
 CORE_PROJECT=core
 IPTV_PROJECT=iptv
 IMMICH_PROJECT=immich
+MEDIA_PROJECT=media
 
 # Compose files
 CORE_COMPOSE=core/docker-compose.yml
 IPTV_COMPOSE=iptv/docker-compose.yml
 IMMICH_COMPOSE=immich/docker-compose.yml
+MEDIA_COMPOSE=media/docker-compose.yml
 
 # Paths
 DOCKER_CONTEXT=$(shell docker context show)
@@ -16,7 +18,7 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -90,11 +92,16 @@ restart: down up
 logs-core:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f | cat
 
+auth-up:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d auth
+
 auth-stop:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop auth
 
 auth-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start auth
+
+auth-restart: auth-stop auth-up
 
 auth-export: auth-stop check-secrets
 	mkdir -p ./keycloak-export
@@ -161,3 +168,14 @@ immich-restart: immich-down immich-up
 
 logs-immich:
 	docker compose -p $(IMMICH_PROJECT) -f $(IMMICH_COMPOSE) logs -f | cat
+
+media-up:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d
+
+media-down:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) down
+
+media-restart: media-down media-up
+
+logs-media:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) logs -f | cat

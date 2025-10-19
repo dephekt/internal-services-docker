@@ -1,0 +1,117 @@
+name: media
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    user: 1000:1000
+    group_add:
+      - "993"  # render group for GPU access
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - TZ=America/Chicago
+    volumes:
+      - jellyfin-config:/config
+      - ./cache:/cache
+      - /media/daniel/streaming:/media:ro
+    labels:
+      - "pangolin.proxy-resources.jellyfin.name=Jellyfin"
+      - "pangolin.proxy-resources.jellyfin.protocol=http"
+      - "pangolin.proxy-resources.jellyfin.full-domain=stream.${DOMAIN}"
+      - "pangolin.proxy-resources.jellyfin.targets[0].enabled=true"
+      - "pangolin.proxy-resources.jellyfin.targets[0].method=http"
+      - "pangolin.proxy-resources.jellyfin.targets[0].port=8096"
+    networks:
+      - proxy
+      - core
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - radarr-config:/config
+      - /media/daniel/streaming:/media
+    labels:
+      - "pangolin.proxy-resources.radarr.name=Radarr"
+      - "pangolin.proxy-resources.radarr.protocol=http"
+      - "pangolin.proxy-resources.radarr.full-domain=radarr.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.radarr.targets[0].enabled=true"
+      - "pangolin.proxy-resources.radarr.targets[0].method=http"
+      - "pangolin.proxy-resources.radarr.targets[0].port=7878"
+      - "pangolin.proxy-resources.radarr.auth.sso-enabled=true"
+      - "pangolin.proxy-resources.radarr.auth.sso-roles[0]=Member"
+    networks:
+      - proxy
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - sonarr-config:/config
+      - /media/daniel/streaming:/media
+    labels:
+      - "pangolin.proxy-resources.sonarr.name=Sonarr"
+      - "pangolin.proxy-resources.sonarr.protocol=http"
+      - "pangolin.proxy-resources.sonarr.full-domain=sonarr.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.sonarr.targets[0].enabled=true"
+      - "pangolin.proxy-resources.sonarr.targets[0].method=http"
+      - "pangolin.proxy-resources.sonarr.targets[0].port=8989"
+      - "pangolin.proxy-resources.sonarr.auth.sso-enabled=true"
+      - "pangolin.proxy-resources.sonarr.auth.sso-roles[0]=Member"
+    networks:
+      - proxy
+
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    container_name: nzbget
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - nzbget-config:/config
+      - /media/daniel/streaming:/media
+    labels:
+      - "pangolin.proxy-resources.nzbget.name=NZBGet"
+      - "pangolin.proxy-resources.nzbget.protocol=http"
+      - "pangolin.proxy-resources.nzbget.full-domain=nzb.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.nzbget.targets[0].enabled=true"
+      - "pangolin.proxy-resources.nzbget.targets[0].method=http"
+      - "pangolin.proxy-resources.nzbget.targets[0].port=6789"
+      - "pangolin.proxy-resources.nzbget.auth.sso-enabled=true"
+      - "pangolin.proxy-resources.nzbget.auth.sso-roles[0]=Member"
+    networks:
+      - proxy
+
+volumes:
+  jellyfin-config:
+  radarr-config:
+  sonarr-config:
+  nzbget-config:
+
+networks:
+  proxy:
+    external: true
+  core:
+    external: true
+    name: core_core
+
