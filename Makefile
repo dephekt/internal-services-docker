@@ -1,14 +1,20 @@
-export COMPOSE_PROJECT_NAME ?= media
+# Project names
+CORE_PROJECT=core
+IPTV_PROJECT=iptv
+IMMICH_PROJECT=immich
+
+# Compose files
 CORE_COMPOSE=core/docker-compose.yml
+IPTV_COMPOSE=iptv/docker-compose.yml
+IMMICH_COMPOSE=immich/docker-compose.yml
+
+# Paths
 DOCKER_CONTEXT=$(shell docker context show)
 CORE_PROJECT_DIR=$(shell pwd)/core
 
 # Export all variables from config.env for docker compose interpolation
 include core/config.env
 export
-
-IPTV_COMPOSE=iptv/docker-compose.yml
-IMMICH_COMPOSE=immich/docker-compose.yml
 
 .PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich
 
@@ -68,10 +74,10 @@ sync-secrets: check-secrets
 	fi
 
 core-up: check-secrets sync-secrets
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d
 
 core-down:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) down
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) down
 
 up: core-up
 	echo "Stacks started"
@@ -82,17 +88,17 @@ down: core-down
 restart: down up
 
 logs-core:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f | cat
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f | cat
 
 auth-stop:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop auth
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop auth
 
 auth-start:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start auth
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start auth
 
 auth-export: auth-stop check-secrets
 	mkdir -p ./keycloak-export
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-export:/opt/keycloak/data/export \
 		auth export \
 		--dir /opt/keycloak/data/export \
@@ -105,7 +111,7 @@ auth-transfer-export:
 
 auth-import: auth-stop check-secrets
 	mkdir -p ./keycloak-import
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-import:/opt/keycloak/data/import \
 		auth import \
 		--dir /opt/keycloak/data/import
@@ -113,15 +119,15 @@ auth-import: auth-stop check-secrets
 auth-migrate: auth-export auth-transfer-export auth-import
 
 ldap-stop:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop ldap
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop ldap
 
 ldap-start:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start ldap
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start ldap
 
 ldap-restart: ldap-stop ldap-start
 
 logs-ldap:
-	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
 
 ldap-test:
 	@echo "=== Testing LDAP connection ==="
@@ -135,23 +141,23 @@ ldap-test:
 	@echo "✓ LDAP connection successful"
 
 iptv-up:
-	docker compose -p iptv -f $(IPTV_COMPOSE) up -d
+	docker compose -p $(IPTV_PROJECT) -f $(IPTV_COMPOSE) up -d
 
 iptv-down:
-	docker compose -p iptv -f $(IPTV_COMPOSE) down
+	docker compose -p $(IPTV_PROJECT) -f $(IPTV_COMPOSE) down
 
 iptv-restart: iptv-down iptv-up
 
 logs-iptv:
-	docker compose -p iptv -f $(IPTV_COMPOSE) logs -f | cat
+	docker compose -p $(IPTV_PROJECT) -f $(IPTV_COMPOSE) logs -f | cat
 
 immich-up:
-	docker compose -p immich -f $(IMMICH_COMPOSE) up -d
+	docker compose -p $(IMMICH_PROJECT) -f $(IMMICH_COMPOSE) up -d
 
 immich-down:
-	docker compose -p immich -f $(IMMICH_COMPOSE) down
+	docker compose -p $(IMMICH_PROJECT) -f $(IMMICH_COMPOSE) down
 
 immich-restart: immich-down immich-up
 
 logs-immich:
-	docker compose -p immich -f $(IMMICH_COMPOSE) logs -f | cat
+	docker compose -p $(IMMICH_PROJECT) -f $(IMMICH_COMPOSE) logs -f | cat
