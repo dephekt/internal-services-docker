@@ -79,14 +79,14 @@ logs-core:
 	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f | cat
 
 auth-stop:
-	docker compose -f $(CORE_COMPOSE) stop auth
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop auth
 
 auth-start:
-	docker compose -f $(CORE_COMPOSE) start auth
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start auth
 
 auth-export: auth-stop check-secrets
 	mkdir -p ./keycloak-export
-	docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-export:/opt/keycloak/data/export \
 		auth export \
 		--dir /opt/keycloak/data/export \
@@ -99,7 +99,7 @@ auth-transfer-export:
 
 auth-import: auth-stop check-secrets
 	mkdir -p ./keycloak-import
-	docker compose -f $(CORE_COMPOSE) run --rm --no-deps \
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) run --rm --no-deps \
 		-v ./keycloak-import:/opt/keycloak/data/import \
 		auth import \
 		--dir /opt/keycloak/data/import
