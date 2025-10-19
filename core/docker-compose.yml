@@ -89,9 +89,34 @@ services:
       - db_password
       - mariadb_root_password
 
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ldap
+    restart: unless-stopped
+    environment:
+      - LDAP_ORGANISATION=Dephekt
+      - LDAP_DOMAIN=${DOMAIN}
+      - LDAP_ADMIN_PASSWORD_FILE=/run/secrets/ldap_admin_password
+      - LDAP_CONFIG_PASSWORD_FILE=/run/secrets/ldap_admin_password
+      - LDAP_TLS=false
+      - LDAP_LOG_LEVEL=256
+    volumes:
+      - openldap-data:/var/lib/ldap
+      - openldap-config:/etc/ldap/slapd.d
+    secrets:
+      - ldap_admin_password
+    healthcheck:
+      test: ["CMD-SHELL", "BASE_DN=\"dc=$${DOMAIN//./,dc=}\"; ldapsearch -x -H ldap://localhost:389 -b \"$$BASE_DN\" -D \"cn=admin,$$BASE_DN\" -w \"$$(cat /run/secrets/ldap_admin_password)\" -s base"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   keycloak-data:
   keycloak-mariadb:
+  openldap-data:
+  openldap-config:
 
 secrets:
   KEYCLOAK_ADMIN_PASSWORD.env:
@@ -106,3 +131,5 @@ secrets:
     file: ./secrets/NEWT_ID.env
   NEWT_SECRET.env:
     file: ./secrets/NEWT_SECRET.env
+  ldap_admin_password:
+    file: ./secrets/LDAP_ADMIN_PASSWORD

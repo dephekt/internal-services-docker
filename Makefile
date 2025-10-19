@@ -10,7 +10,7 @@ export
 IPTV_COMPOSE=iptv/docker-compose.yml
 IMMICH_COMPOSE=immich/docker-compose.yml
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-stop auth-start auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -18,6 +18,7 @@ inject-secrets:
 	@op read "op://Develop/Keycloak Admin/password" > core/secrets/KEYCLOAK_ADMIN_PASSWORD.env
 	@op read "op://Develop/Keycloak DB/password" > core/secrets/DB_PASSWORD.env
 	@op read "op://Develop/Keycloak Admin/password" > core/secrets/MARIADB_ROOT_PASSWORD
+	@op read "op://Develop/LDAP/admin password" > core/secrets/LDAP_ADMIN_PASSWORD
 	@op read "op://Develop/Pangolin/newt id" > core/secrets/NEWT_ID.env
 	@op read "op://Develop/Pangolin/newt secret" > core/secrets/NEWT_SECRET.env
 	@echo "Secrets injected successfully!"
@@ -36,6 +37,11 @@ check-secrets:
 	fi
 	@if [ ! -f core/secrets/MARIADB_ROOT_PASSWORD ]; then \
 		echo "ERROR: core/secrets/MARIADB_ROOT_PASSWORD not found!"; \
+		echo "Run 'make inject-secrets' first to generate secrets"; \
+		exit 1; \
+	fi
+	@if [ ! -f core/secrets/LDAP_ADMIN_PASSWORD ]; then \
+		echo "ERROR: core/secrets/LDAP_ADMIN_PASSWORD not found!"; \
 		echo "Run 'make inject-secrets' first to generate secrets"; \
 		exit 1; \
 	fi
@@ -105,6 +111,28 @@ auth-import: auth-stop check-secrets
 		--dir /opt/keycloak/data/import
 
 auth-migrate: auth-export auth-transfer-export auth-import
+
+ldap-stop:
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop ldap
+
+ldap-start:
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start ldap
+
+ldap-restart: ldap-stop ldap-start
+
+logs-ldap:
+	docker compose --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
+
+ldap-test:
+	@echo "=== Testing LDAP connection ==="
+	@LDAP_PASSWORD=$$(cat core/secrets/LDAP_ADMIN_PASSWORD); \
+	BASE_DN="dc=$${DOMAIN//./,dc=}"; \
+	docker exec ldap ldapsearch -x -H ldap://localhost:389 \
+		-b "$$BASE_DN" \
+		-D "cn=admin,$$BASE_DN" \
+		-w "$$LDAP_PASSWORD" 2>&1 | grep -E "(^dn:|^result:|Success)" || \
+		(echo "✗ LDAP test failed" && exit 1)
+	@echo "✓ LDAP connection successful"
 
 iptv-up:
 	docker compose -p iptv -f $(IPTV_COMPOSE) up -d
