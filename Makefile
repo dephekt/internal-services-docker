@@ -18,7 +18,7 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -179,3 +179,43 @@ media-restart: media-down media-up
 
 logs-media:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) logs -f | cat
+
+jellyfin-stop:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop jellyfin
+
+jellyfin-start:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start jellyfin
+
+jellyfin-restart: jellyfin-stop jellyfin-start
+
+radarr-stop:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop radarr
+
+radarr-start:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start radarr
+
+radarr-restart: radarr-stop radarr-start
+
+sonarr-stop:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop sonarr
+
+sonarr-start:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start sonarr
+
+sonarr-restart: sonarr-stop sonarr-start
+
+nzbget-stop:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop nzbget
+
+nzbget-start:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start nzbget
+
+nzbget-restart: nzbget-stop nzbget-start
+
+seerr-stop:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop seerr
+
+seerr-start:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start seerr
+
+seerr-restart: seerr-stop seerr-start

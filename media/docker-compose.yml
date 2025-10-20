@@ -102,11 +102,38 @@ services:
     networks:
       - proxy
 
+  seerr:
+    image: ghcr.io/fallenbagel/jellyseerr:latest
+    init: true
+    container_name: seerr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=America/Chicago
+    volumes:
+      - seerr-config:/app/config
+    labels:
+      - "pangolin.proxy-resources.seerr.name=Seerr"
+      - "pangolin.proxy-resources.seerr.protocol=http"
+      - "pangolin.proxy-resources.seerr.full-domain=request.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.seerr.targets[0].enabled=true"
+      - "pangolin.proxy-resources.seerr.targets[0].method=http"
+      - "pangolin.proxy-resources.seerr.targets[0].port=5055"
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/status"]
+      start_period: 20s
+      timeout: 3s
+      interval: 15s
+      retries: 3
+
 volumes:
   jellyfin-config:
   radarr-config:
   sonarr-config:
   nzbget-config:
+  seerr-config:
 
 networks:
   proxy:
