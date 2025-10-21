@@ -9,6 +9,7 @@ services:
     group_add:
       - "993"  # render group for GPU access
     devices:
+      # my gpu render node is /dev/dri/renderR129
       - /dev/dri:/dev/dri
     environment:
       - TZ=America/Chicago
@@ -17,12 +18,11 @@ services:
       - ./cache:/cache
       - /media/daniel/streaming:/media:ro
     labels:
-      - "pangolin.proxy-resources.jellyfin.name=Jellyfin"
+      - "pangolin.proxy-resources.jellyfin.name=Streaming"
       - "pangolin.proxy-resources.jellyfin.protocol=http"
       - "pangolin.proxy-resources.jellyfin.full-domain=stream.${DOMAIN}"
       - "pangolin.proxy-resources.jellyfin.targets[0].enabled=true"
       - "pangolin.proxy-resources.jellyfin.targets[0].method=http"
-      - "pangolin.proxy-resources.jellyfin.targets[0].port=8096"
     networks:
       - proxy
       - core
@@ -47,10 +47,9 @@ services:
     labels:
       - "pangolin.proxy-resources.radarr.name=Radarr"
       - "pangolin.proxy-resources.radarr.protocol=http"
-      - "pangolin.proxy-resources.radarr.full-domain=radarr.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.radarr.full-domain=movies.stream.${DOMAIN}"
       - "pangolin.proxy-resources.radarr.targets[0].enabled=true"
       - "pangolin.proxy-resources.radarr.targets[0].method=http"
-      - "pangolin.proxy-resources.radarr.targets[0].port=7878"
       - "pangolin.proxy-resources.radarr.auth.sso-enabled=true"
       - "pangolin.proxy-resources.radarr.auth.sso-roles[0]=Member"
     networks:
@@ -70,10 +69,9 @@ services:
     labels:
       - "pangolin.proxy-resources.sonarr.name=Sonarr"
       - "pangolin.proxy-resources.sonarr.protocol=http"
-      - "pangolin.proxy-resources.sonarr.full-domain=sonarr.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.sonarr.full-domain=shows.stream.${DOMAIN}"
       - "pangolin.proxy-resources.sonarr.targets[0].enabled=true"
       - "pangolin.proxy-resources.sonarr.targets[0].method=http"
-      - "pangolin.proxy-resources.sonarr.targets[0].port=8989"
       - "pangolin.proxy-resources.sonarr.auth.sso-enabled=true"
       - "pangolin.proxy-resources.sonarr.auth.sso-roles[0]=Member"
     networks:
@@ -93,10 +91,9 @@ services:
     labels:
       - "pangolin.proxy-resources.nzbget.name=NZBGet"
       - "pangolin.proxy-resources.nzbget.protocol=http"
-      - "pangolin.proxy-resources.nzbget.full-domain=nzb.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.nzbget.full-domain=grab.stream.${DOMAIN}"
       - "pangolin.proxy-resources.nzbget.targets[0].enabled=true"
       - "pangolin.proxy-resources.nzbget.targets[0].method=http"
-      - "pangolin.proxy-resources.nzbget.targets[0].port=6789"
       - "pangolin.proxy-resources.nzbget.auth.sso-enabled=true"
       - "pangolin.proxy-resources.nzbget.auth.sso-roles[0]=Member"
     networks:
@@ -113,12 +110,14 @@ services:
     volumes:
       - seerr-config:/app/config
     labels:
-      - "pangolin.proxy-resources.seerr.name=Seerr"
+      - "pangolin.proxy-resources.seerr.name=Requests"
       - "pangolin.proxy-resources.seerr.protocol=http"
-      - "pangolin.proxy-resources.seerr.full-domain=request.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.seerr.full-domain=requests.stream.${DOMAIN}"
       - "pangolin.proxy-resources.seerr.targets[0].enabled=true"
       - "pangolin.proxy-resources.seerr.targets[0].method=http"
       - "pangolin.proxy-resources.seerr.targets[0].port=5055"
+      - "pangolin.proxy-resources.seerr.auth.sso-enabled=true"
+      - "pangolin.proxy-resources.seerr.auth.sso-roles[0]=Member"
     networks:
       - proxy
     healthcheck:
