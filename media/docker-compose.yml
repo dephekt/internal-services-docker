@@ -91,7 +91,7 @@ services:
     labels:
       - "pangolin.proxy-resources.nzbget.name=NZBGet"
       - "pangolin.proxy-resources.nzbget.protocol=http"
-      - "pangolin.proxy-resources.nzbget.full-domain=grab.stream.${DOMAIN}"
+      - "pangolin.proxy-resources.nzbget.full-domain=grabs.stream.${DOMAIN}"
       - "pangolin.proxy-resources.nzbget.targets[0].enabled=true"
       - "pangolin.proxy-resources.nzbget.targets[0].method=http"
       - "pangolin.proxy-resources.nzbget.auth.sso-enabled=true"

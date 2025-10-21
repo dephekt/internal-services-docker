@@ -125,6 +125,35 @@ services:
       retries: 3
       start_period: 30s
 
+  homepage:
+    build:
+      context: .
+      dockerfile: homepage.Dockerfile
+      args:
+        DOMAIN: ${DOMAIN}
+    image: local/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    labels:
+      - "pangolin.proxy-resources.homepage.name=Homepage"
+      - "pangolin.proxy-resources.homepage.protocol=http"
+      - "pangolin.proxy-resources.homepage.full-domain=www.${DOMAIN}"
+      - "pangolin.proxy-resources.homepage.targets[0].method=http"
+      - "pangolin.proxy-resources.homepage.targets[0].port=80"
+      # Rule 0: Pass /services to auth (require SSO for this path)
+      - "pangolin.proxy-resources.homepage.rules[0].action=pass"
+      - "pangolin.proxy-resources.homepage.rules[0].match=path"
+      - "pangolin.proxy-resources.homepage.rules[0].value=/services"
+      # Rule 1: Allow everything else (bypass auth for all other paths)
+      - "pangolin.proxy-resources.homepage.rules[1].action=allow"
+      - "pangolin.proxy-resources.homepage.rules[1].match=path"
+      - "pangolin.proxy-resources.homepage.rules[1].value=/*"
+      # SSO configuration (only applies to paths that pass to auth)
+      - "pangolin.proxy-resources.homepage.auth.sso-enabled=true"
+      - "pangolin.proxy-resources.homepage.auth.sso-roles[0]=Member"
+    networks:
+      - proxy
+
 volumes:
   keycloak-data:
     external: true

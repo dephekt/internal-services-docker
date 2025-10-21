@@ -1,7 +1,36 @@
-### Share your self-hosted apps safely, with single sign‑on
+## Self-hosted stack for sharing media with family and friends
 
-This stack lets you share apps running at home without opening router ports or exposing your home IP. Your users just visit a URL in their browser. You get HTTPS and single sign‑on (SSO). Apps that already support SSO can plug into your identity provider; apps that don’t can still sit behind a login screen.
+I made this Docker-based streaming media platform to offer my family and friends a better way to access services I've informally provided for years. A major goal of this iteration is hiding complexity and minimizing the learning curve and information density for the end user.
 
+In an ideal world, my users are shielded from:
+- installing VPN or similar software for access
+- having to know about the components involved
+- keeping track of many 'weird' links to complicated apps
+- having different credentials for each thing
+
+As an engineer that loves my friends but has very little time to spare, I needed:
+- enterprise identity and access management
+- familiar git-based devops patterns
+- containerized runtime and deployment
+- support and user login portal for users
+
+## Technical Summary
+
+Using Pangolin and this Docker stack, I can securely share apps running at home without my users installing VPN or other special software. Users visit friendly links and have a single account for all services, with Google and Apple social login available.
+
+Each app is exposed under a familiar, branded domain with automated TLS certificate provisioning and maintenance. Exposing new apps involves only adding a few labels to its container, which Pangolin uses to auto-configure and discover its resources for proxying.
+
+### Hugo landing page
+I'm using a markdown-based Hugo static site to write support guides in Markdown and quickly deploy them for users to reference. The site works as a landing page for users with support, login, and other helpful links in one place. The hugo site is brought in to this Docker project as a git submodule during build, then deployed.
+
+Logged in users are able to access an apps page, which has a grid with links to services available in different categories.
+
+### Identity and access management
+Identity for everything is managed by Keycloak in partnership with Pangolin as an OIDC client. Since Jellyfin natively supports LDAP and not OIDC/SAML, Keycloak federates with an OpenLDAP container and keeps users and groups in sync. Then Jellyfin federates with LDAP.
+
+Jellyfin is configured to check for group membership when a Keycloak user tries to sign in. If they are a member of the `streaming` group, they get a Jellyfin account and are able to login. If they are a member of `streaming` and `admin` groups, they're made a Jellyfin admin.
+
+My users have a single username and password for everything, whether the auth is proxied by Pangolin for non-OIDC/SAML apps, by Keycloak with OIDC/SAML clients like Immich and Open WebUI, or by LDAP. And they have no idea Pangolin or LDAP exist.
 
 ## What’s inside (at a glance)
 - Pangolin (managed self‑hosted) edge nodes for global ingress and failover
@@ -86,6 +115,11 @@ TLS termination and cert management are handled by Pangolin at the edge.
 
 ## Want the deep dive?
 See `AGENTS.md` for service inventory, env variables, labels, and command reference.
+
+
+## Acknowledgements
+
+**[Dashboard Icons](https://github.com/homarr-labs/dashboard-icons)** - A collection of over 1800 curated icons for services, applications and tools, designed specifically for dashboards and app directories. Used to power the homepage service icons. Browse the collection at [dashboardicons.com](https://dashboardicons.com/).
 
 
  

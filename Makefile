@@ -18,7 +18,7 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap ldap-test iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap logs-newt newt-stop newt-start newt-restart ldap-test homepage-up homepage-stop homepage-start homepage-restart logs-homepage iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -136,6 +136,17 @@ ldap-restart: ldap-stop ldap-start
 logs-ldap:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
 
+logs-newt:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs --tail 20 newt | cat
+
+newt-stop:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop newt
+
+newt-start:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start newt
+
+newt-restart: newt-stop newt-start
+
 ldap-test:
 	@echo "=== Testing LDAP connection ==="
 	@LDAP_PASSWORD=$$(cat core/secrets/LDAP_ADMIN_PASSWORD); \
@@ -146,6 +157,20 @@ ldap-test:
 		-w "$$LDAP_PASSWORD" 2>&1 | grep -E "(^dn:|^result:|Success)" || \
 		(echo "✗ LDAP test failed" && exit 1)
 	@echo "✓ LDAP connection successful"
+
+homepage-up:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d --build homepage
+
+homepage-stop:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop homepage
+
+homepage-start:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start homepage
+
+homepage-restart: homepage-stop homepage-up
+
+logs-homepage:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f homepage | cat
 
 iptv-up:
 	docker compose -p $(IPTV_PROJECT) -f $(IPTV_COMPOSE) up -d
