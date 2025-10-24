@@ -18,7 +18,7 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-stop ldap-start ldap-restart logs-ldap logs-newt newt-stop newt-start newt-restart ldap-test homepage-up homepage-stop homepage-start homepage-restart logs-homepage iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
+.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-up ldap-stop ldap-start ldap-restart logs-ldap logs-newt newt-up newt-stop newt-start newt-restart ldap-test homepage-up homepage-stop homepage-start homepage-restart logs-homepage iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -131,13 +131,19 @@ ldap-stop:
 ldap-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start ldap
 
-ldap-restart: ldap-stop ldap-start
+ldap-restart: ldap-stop ldap-up
 
 logs-ldap:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
 
+ldap-up:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d --build ldap
+
 logs-newt:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs --tail 20 newt | cat
+
+newt-up:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d --build newt
 
 newt-stop:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) stop newt
@@ -145,7 +151,7 @@ newt-stop:
 newt-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start newt
 
-newt-restart: newt-stop newt-start
+newt-restart: newt-stop newt-up
 
 ldap-test:
 	@echo "=== Testing LDAP connection ==="
