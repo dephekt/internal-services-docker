@@ -1,6 +1,6 @@
 services:
   iptvboss:
-    image: ghcr.io/groenator/iptvboss-docker:latest
+    image: ghcr.io/groenator/iptvboss-docker:v12.0
     container_name: iptvboss
     restart: unless-stopped
     environment:
