@@ -11,16 +11,20 @@ services:
     devices:
       # my gpu render node is /dev/dri/renderR129
       - /dev/dri:/dev/dri
+    ports:
+      - "8096:8096"
+      - "7359:7359/udp"
     environment:
       - TZ=America/Chicago
     volumes:
       - jellyfin-config:/config
       - ./cache:/cache
-      - /media/daniel/streaming:/media:ro
+      - /media/daniel/streaming:/media
     labels:
       - "pangolin.proxy-resources.jellyfin.name=Streaming"
       - "pangolin.proxy-resources.jellyfin.protocol=http"
       - "pangolin.proxy-resources.jellyfin.full-domain=stream.${DOMAIN}"
+      - "pangolin.proxy-resources.jellyfin.targets[0].port=8096"
       - "pangolin.proxy-resources.jellyfin.targets[0].enabled=true"
       - "pangolin.proxy-resources.jellyfin.targets[0].method=http"
     networks:
