@@ -101,7 +101,8 @@ auth-stop:
 auth-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start auth
 
-auth-restart: auth-stop auth-up
+auth-restart:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d auth
 
 auth-export: auth-stop check-secrets
 	mkdir -p ./keycloak-export
@@ -131,7 +132,8 @@ ldap-stop:
 ldap-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start ldap
 
-ldap-restart: ldap-stop ldap-up
+ldap-restart:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d ldap
 
 logs-ldap:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f ldap | cat
@@ -151,7 +153,8 @@ newt-stop:
 newt-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start newt
 
-newt-restart: newt-stop newt-up
+newt-restart:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d newt
 
 ldap-test:
 	@echo "=== Testing LDAP connection ==="
@@ -173,7 +176,8 @@ homepage-stop:
 homepage-start:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) start homepage
 
-homepage-restart: homepage-stop homepage-up
+homepage-restart:
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d homepage
 
 logs-homepage:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) logs -f homepage | cat
@@ -217,7 +221,8 @@ jellyfin-stop:
 jellyfin-start:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start jellyfin
 
-jellyfin-restart: jellyfin-stop jellyfin-start
+jellyfin-restart:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d jellyfin
 
 radarr-stop:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop radarr
@@ -225,7 +230,8 @@ radarr-stop:
 radarr-start:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start radarr
 
-radarr-restart: radarr-stop radarr-start
+radarr-restart:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d radarr
 
 sonarr-stop:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop sonarr
@@ -233,7 +239,8 @@ sonarr-stop:
 sonarr-start:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start sonarr
 
-sonarr-restart: sonarr-stop sonarr-start
+sonarr-restart:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d sonarr
 
 nzbget-stop:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop nzbget
@@ -241,7 +248,8 @@ nzbget-stop:
 nzbget-start:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start nzbget
 
-nzbget-restart: nzbget-stop nzbget-start
+nzbget-restart:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d nzbget
 
 seerr-stop:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) stop seerr
@@ -249,4 +257,5 @@ seerr-stop:
 seerr-start:
 	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) start seerr
 
-seerr-restart: seerr-stop seerr-start
+seerr-restart:
+	docker compose -p $(MEDIA_PROJECT) -f $(MEDIA_COMPOSE) up -d seerr
