@@ -55,7 +55,6 @@ services:
       - "pangolin.proxy-resources.radarr.targets[0].enabled=true"
       - "pangolin.proxy-resources.radarr.targets[0].method=http"
       - "pangolin.proxy-resources.radarr.auth.sso-enabled=true"
-      - "pangolin.proxy-resources.radarr.auth.sso-roles[0]=Member"
     networks:
       - proxy
 
@@ -77,7 +76,6 @@ services:
       - "pangolin.proxy-resources.sonarr.targets[0].enabled=true"
       - "pangolin.proxy-resources.sonarr.targets[0].method=http"
       - "pangolin.proxy-resources.sonarr.auth.sso-enabled=true"
-      - "pangolin.proxy-resources.sonarr.auth.sso-roles[0]=Member"
     networks:
       - proxy
 
@@ -99,7 +97,6 @@ services:
       - "pangolin.proxy-resources.nzbget.targets[0].enabled=true"
       - "pangolin.proxy-resources.nzbget.targets[0].method=http"
       - "pangolin.proxy-resources.nzbget.auth.sso-enabled=true"
-      - "pangolin.proxy-resources.nzbget.auth.sso-roles[0]=Member"
     networks:
       - proxy
 
