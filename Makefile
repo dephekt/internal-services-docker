@@ -18,7 +18,7 @@ CORE_PROJECT_DIR=$(shell pwd)/core
 include core/config.env
 export
 
-.PHONY: inject-secrets check-secrets sync-secrets core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-up ldap-stop ldap-start ldap-restart logs-ldap logs-newt newt-up newt-stop newt-start newt-restart ldap-test homepage-up homepage-stop homepage-start homepage-restart logs-homepage iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
+.PHONY: inject-secrets check-secrets sync-secrets build-script-providers core-up core-down up down restart logs-core auth-up auth-stop auth-start auth-restart auth-export auth-import auth-migrate ldap-up ldap-stop ldap-start ldap-restart logs-ldap logs-newt newt-up newt-stop newt-start newt-restart ldap-test homepage-up homepage-stop homepage-start homepage-restart logs-homepage iptv-up iptv-down iptv-restart logs-iptv immich-up immich-down immich-restart logs-immich media-up media-down media-restart logs-media jellyfin-stop jellyfin-start jellyfin-restart radarr-stop radarr-start radarr-restart sonarr-stop sonarr-start sonarr-restart nzbget-stop nzbget-start nzbget-restart seerr-stop seerr-start seerr-restart
 
 inject-secrets:
 	@echo "Injecting secrets from 1Password..."
@@ -31,6 +31,11 @@ inject-secrets:
 	@op read "op://Develop/Pangolin/newt secret" > core/secrets/NEWT_SECRET.env
 	@echo "Secrets injected successfully!"
 	@echo "Note: core/secrets/* files are git-ignored and should not be committed"
+
+build-script-providers:
+	@echo "Building Keycloak script providers JAR..."
+	@cd core/keycloak-scripts && zip -r ../keycloak-providers/keycloak-scripts.jar META-INF/ *.js
+	@echo "✓ Built core/keycloak-providers/keycloak-scripts.jar"
 
 check-secrets:
 	@if [ ! -f core/secrets/KEYCLOAK_ADMIN_PASSWORD.env ]; then \
@@ -69,14 +74,14 @@ sync-secrets: check-secrets
 	@if [ "$(DOCKER_CONTEXT)" != "default" ]; then \
 		echo "Syncing secrets to remote context: $(DOCKER_CONTEXT)"; \
 		DOCKER_HOST=$$(docker context inspect $(DOCKER_CONTEXT) -f '{{.Endpoints.docker.Host}}' | sed 's|^ssh://||'); \
-		rsync -avz --relative core/secrets core/config.env core/keycloak-providers core/secrets2env.sh keycloak-import/ $${DOCKER_HOST}:~/docker/; \
+		rsync -avz --relative core/secrets core/config.env core/keycloak-providers core/secrets2env.sh keycloak-import/ immich/.env immich/hwaccel.ml.yml immich/hwaccel.transcoding.yml $${DOCKER_HOST}:~/docker/; \
 		echo "Secrets synced to remote host"; \
 	else \
 		echo "Using local context, no sync needed"; \
 	fi
 
-core-up: check-secrets sync-secrets
-	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d
+core-up: check-secrets build-script-providers sync-secrets
+	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) up -d --build
 
 core-down:
 	docker compose -p $(CORE_PROJECT) --project-directory $(CORE_PROJECT_DIR) -f $(CORE_COMPOSE) down

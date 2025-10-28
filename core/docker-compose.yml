@@ -44,6 +44,9 @@ services:
       - KC_HOSTNAME_STRICT_HTTPS=false
       - KC_HTTP_ENABLED=true
       - KC_PROXY_HEADERS=xforwarded
+      # I'm using a script mapper to set immich_role from groups
+      # JavaScript providers are a KC preview feature and needs enabled
+      - KC_FEATURES=scripts:v1
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]

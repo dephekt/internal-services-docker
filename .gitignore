@@ -3,3 +3,4 @@
 **/secrets/
 keycloak-import/
 keycloak-export/
+core/keycloak-providers/keycloak-scripts.jar
